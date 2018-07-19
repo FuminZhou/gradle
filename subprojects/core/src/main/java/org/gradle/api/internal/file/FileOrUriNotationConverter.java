@@ -39,6 +39,8 @@ public class FileOrUriNotationConverter implements NotationConverter<Object, Obj
     private static final Pattern URI_SCHEME = Pattern.compile("[a-zA-Z][a-zA-Z0-9+-\\.]*:.+");
     private static final Pattern ENCODED_URI = Pattern.compile("%([0-9a-fA-F]{2})");
     private final FileSystem fileSystem;
+    private static File[] staticRootCache = null;
+    private static Object staticLock = new Object();
 
     public FileOrUriNotationConverter(FileSystem fileSystem) {
         this.fileSystem = fileSystem;
@@ -99,7 +101,16 @@ public class FileOrUriNotationConverter implements NotationConverter<Object, Obj
                 return;
             }
             if (URI_SCHEME.matcher(notationString).matches()) {
-                for (File file : File.listRoots()) {
+                // If the fileRoot cache is not set yet, lock and initialize it.
+                if (staticRootCache == null) {
+                    synchronized (staticLock) {
+                        if (staticRootCache =  == null) {
+                            staticRootCache = File.listRoots();
+                        }
+                    }
+                }
+                
+                for (File file : staticRootCache) { // Use the cached file roots instead of invoking File.listRoots all the time.
                     String rootPath = file.getAbsolutePath();
                     String normalisedStr = notationString;
                     if (!fileSystem.isCaseSensitive()) {
